@@ -1,0 +1,13 @@
+# Secret: never commit your bot token
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# SQLite database
+*.sqlite
+*.db
