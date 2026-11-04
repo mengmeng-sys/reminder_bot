@@ -1,4 +1,4 @@
-"""Tests for the SQLite storage layer."""
+"""Tests for the MongoDB storage layer."""
 
 from datetime import timedelta
 
@@ -6,10 +6,7 @@ import database
 from utils import alert_schedule, utc_now
 
 
-def test_task_and_steps(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
-
+def test_task_and_steps(mongo_db):
     deadline = utc_now() + timedelta(days=2)
     task_id = database.add_task(1, "Finish report", deadline, 120)
 
@@ -24,10 +21,14 @@ def test_task_and_steps(tmp_path, monkeypatch):
     assert database.get_next_step(task_id).text == "Make chart"
 
 
-def test_alerts_rebuild_and_due(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_task_id_is_a_string(mongo_db):
+    """MongoDB ids are used directly in callback data, so they must be strings."""
+    task_id = database.add_task(1, "Task", utc_now() + timedelta(days=1), 60)
+    assert isinstance(task_id, str)
+    assert len(task_id) == 24  # ObjectId hex string
 
+
+def test_alerts_rebuild_and_due(mongo_db):
     deadline = utc_now() + timedelta(days=2)
     task_id = database.add_task(1, "Task", deadline, 120)
     database.rebuild_alerts(task_id, alert_schedule(deadline, 120))
@@ -36,9 +37,7 @@ def test_alerts_rebuild_and_due(tmp_path, monkeypatch):
     assert database.get_due_alerts(utc_now()) == []
 
     # Rebuild with an alert that is already in the past.
-    database.rebuild_alerts(
-        task_id, [("overdue", utc_now() - timedelta(minutes=1))]
-    )
+    database.rebuild_alerts(task_id, [("overdue", utc_now() - timedelta(minutes=1))])
     due = database.get_due_alerts(utc_now())
     assert len(due) == 1
     assert due[0].kind == "overdue"
@@ -47,10 +46,7 @@ def test_alerts_rebuild_and_due(tmp_path, monkeypatch):
     assert database.get_due_alerts(utc_now()) == []
 
 
-def test_focus_sessions(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
-
+def test_focus_sessions(mongo_db):
     now = utc_now()
     session_id = database.create_focus_session(
         1, None, "focus", now, now + timedelta(minutes=25), 25
@@ -65,10 +61,7 @@ def test_focus_sessions(tmp_path, monkeypatch):
     assert database.get_running_session(1) is None
 
 
-def test_only_own_tasks_are_returned(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
-
+def test_only_own_tasks_are_returned(mongo_db):
     deadline = utc_now() + timedelta(days=1)
     database.add_task(1, "User 1 task", deadline, 60)
     database.add_task(2, "User 2 task", deadline, 60)

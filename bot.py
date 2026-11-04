@@ -1,9 +1,12 @@
 """Entry point for the task coach bot.
 
-Run it with:
+Run it locally with:
     python bot.py
+
+On Render it automatically switches to webhook mode (see run_webhook).
 """
 
+import asyncio
 import logging
 import warnings
 
@@ -15,7 +18,13 @@ from telegram.warnings import PTBUserWarning
 
 import database
 import jobs
-from config import BOT_TOKEN, PROXY_URL
+from config import (
+    BOT_TOKEN,
+    PORT,
+    PROXY_URL,
+    RENDER_EXTERNAL_URL,
+    WEBHOOK_SECRET,
+)
 from handlers.alerts import alert_handlers
 from handlers.focus import focus_command, focus_handlers
 from handlers.menu import help_button, help_command, show_menu, start
@@ -156,6 +165,56 @@ def build_application() -> Application:
     return application
 
 
+async def run_webhook(application: Application) -> None:
+    """Run the bot with a webhook (used on Render).
+
+    We build the Tornado app ourselves so we can add a /health endpoint,
+    which a free ping service uses to keep the service awake.
+    """
+    import tornado.web
+    from telegram.ext._utils.webhookhandler import TelegramHandler
+    from tornado.httpserver import HTTPServer
+
+    await application.initialize()
+    await application.start()
+    await application.post_init(application)
+
+    webhook_url = f"{RENDER_EXTERNAL_URL}/webhook"
+    await application.bot.set_webhook(url=webhook_url, secret_token=WEBHOOK_SECRET)
+    logger.info("Webhook set to %s", webhook_url)
+
+    class HealthHandler(tornado.web.RequestHandler):
+        def get(self) -> None:
+            self.write("OK")
+
+    app = tornado.web.Application(
+        [
+            (
+                r"/webhook/?",
+                TelegramHandler,
+                {
+                    "bot": application.bot,
+                    "update_queue": application.update_queue,
+                    "secret_token": WEBHOOK_SECRET,
+                },
+            ),
+            (r"/health", HealthHandler),
+        ]
+    )
+
+    server = HTTPServer(app)
+    server.listen(PORT, "0.0.0.0")
+    logger.info("Webhook server listening on port %s", PORT)
+
+    try:
+        # Keep the process alive until Render stops it.
+        await asyncio.Event().wait()
+    finally:
+        server.stop()
+        await application.stop()
+        await application.shutdown()
+
+
 def main() -> None:
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -167,17 +226,22 @@ def main() -> None:
     database.init_db()
 
     application = build_application()
-    logger.info("Bot is running...")
 
-    try:
-        application.run_polling(bootstrap_retries=3)
-    except NetworkError as exc:
-        logger.error(
-            "Could not connect to Telegram: %s\n"
-            "Please check your internet connection. If Telegram is blocked "
-            "in your country, set PROXY_URL in .env.",
-            exc,
-        )
+    # On Render we get a public URL, so use webhooks. Locally we use polling.
+    if RENDER_EXTERNAL_URL:
+        logger.info("Starting in WEBHOOK mode for Render...")
+        asyncio.run(run_webhook(application))
+    else:
+        logger.info("Bot is running...")
+        try:
+            application.run_polling(bootstrap_retries=3)
+        except NetworkError as exc:
+            logger.error(
+                "Could not connect to Telegram: %s\n"
+                "Please check your internet connection. If Telegram is blocked "
+                "in your country, set PROXY_URL in .env.",
+                exc,
+            )
 
 
 if __name__ == "__main__":

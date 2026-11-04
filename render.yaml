@@ -1,0 +1,20 @@
+# Render deployment configuration for the task coach bot.
+# See https://render.com/docs/render-yaml-reference
+
+services:
+  - type: web
+    name: task-coach-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    healthCheckPath: /health
+    envVars:
+      - key: BOT_TOKEN
+        sync: false # set it in the Render dashboard
+      - key: MONGO_URI
+        sync: false # set it in the Render dashboard
+      - key: MONGO_DB_NAME
+        value: task_coach
+      - key: WEBHOOK_SECRET
+        generateValue: true

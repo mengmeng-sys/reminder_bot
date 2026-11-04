@@ -440,7 +440,7 @@ async def start_change_deadline(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _task_of_user(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -517,7 +517,7 @@ async def open_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _task_of_user(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -531,7 +531,7 @@ async def finish_next_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _task_of_user(task_id, update.effective_chat.id)
     if not task or task.status != "active":
         await query.answer("Task not found.", show_alert=True)
@@ -566,7 +566,7 @@ async def delete_task_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _task_of_user(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -583,7 +583,7 @@ async def delete_task_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _task_of_user(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -603,7 +603,7 @@ async def delete_task_no(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _task_of_user(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)

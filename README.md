@@ -46,6 +46,7 @@ and SQLite.
 
 - Python **3.11** or newer
 - A Telegram bot token (free, from [@BotFather](https://t.me/BotFather))
+- A **MongoDB Atlas** account (free) — see below
 
 ---
 
@@ -64,15 +65,28 @@ cd task-coach
 cp .env.example .env
 ```
 
-Open `.env` and paste your token:
+Open `.env` and fill in your token and your MongoDB address:
 
 ```
 BOT_TOKEN=123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+MONGO_URI=mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/
 ```
 
 > 🔒 Never share this file. It is in `.gitignore`.
 
-### 3. Install the packages
+### 3. Create a free MongoDB Atlas database
+
+1. Go to **https://www.mongodb.com/atlas** and sign up / log in.
+2. Click **Create** → choose the **M0 (free)** plan → pick a region → **Create**.
+3. **Database Access** → **Add New Database User** → create a user with a
+   username and password (remember the password!).
+4. **Network Access** → **Add IP Address** → **Allow Access from Anywhere**
+   (`0.0.0.0/0`) → Confirm.
+5. Go to **Database** → **Connect** → **Drivers** → copy the connection string.
+6. Replace `<password>` in the string with your database user's password.
+7. Paste the string into `.env` as `MONGO_URI`.
+
+### 4. Install the packages
 
 ```bash
 python3 -m venv .venv
@@ -80,7 +94,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Start the bot
+### 5. Start the bot
 
 ```bash
 python bot.py
@@ -254,6 +268,54 @@ Create `.env` from `.env.example` and paste your token.
 ### The bot is not responding
 
 Make sure only **one** copy of the bot is running.
+
+---
+
+## ☁️ Hosting on Render (24/7)
+
+Render keeps the bot online all the time, so your friends can use it even
+when your laptop is off.
+
+### 1. Push the code to GitHub
+
+The code should be on GitHub (for example
+`https://github.com/your-name/your-repo`).
+
+### 2. Create a Render web service
+
+1. Go to **https://render.com** and sign up / log in.
+2. Click **New +** → **Web Service**.
+3. Connect your GitHub repo.
+4. Fill in:
+   - **Name**: `task-coach-bot`
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python bot.py`
+   - **Plan**: `Free`
+5. Add the environment variables:
+   - `BOT_TOKEN` = your bot token
+   - `MONGO_URI` = your Atlas connection string
+   - `MONGO_DB_NAME` = `task_coach`
+   - `WEBHOOK_SECRET` = any random text (or let Render generate one)
+6. Click **Create Web Service**.
+
+Render gives you a URL like `https://task-coach-bot.onrender.com`.
+The bot automatically switches to **webhook mode** on Render, so Telegram
+sends messages straight to it.
+
+### 3. Keep it awake (important!)
+
+Render's free services **sleep after 15 minutes** of no traffic. To stop
+that, use a free ping service:
+
+1. Go to **https://uptimerobot.com** and create an account.
+2. Add a new **Monitor**:
+   - Type: `HTTP(s)`
+   - URL: `https://task-coach-bot.onrender.com/health`
+   - Interval: `5 minutes`
+3. Save.
+
+Now your bot stays online 24/7.
 
 ---
 

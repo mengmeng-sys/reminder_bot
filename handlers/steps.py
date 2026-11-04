@@ -55,7 +55,7 @@ async def open_steps(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -69,7 +69,7 @@ async def toggle_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    step_id = int(query.data.split(":")[1])
+    step_id = query.data.split(":")[1]
     step = database.get_step(step_id)
     if not step:
         await query.answer("Step not found.", show_alert=True)
@@ -109,7 +109,7 @@ async def add_step_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -156,7 +156,7 @@ async def edit_step_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -179,7 +179,7 @@ async def edit_step_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    step_id = int(query.data.split(":")[1])
+    step_id = query.data.split(":")[1]
     step = database.get_step(step_id)
     if not step:
         await query.answer("Step not found.", show_alert=True)
@@ -225,7 +225,7 @@ async def delete_step_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -248,7 +248,7 @@ async def delete_step_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    step_id = int(query.data.split(":")[1])
+    step_id = query.data.split(":")[1]
     step = database.get_step(step_id)
     if not step:
         await query.answer("Step not found.", show_alert=True)
@@ -276,7 +276,7 @@ async def delete_step_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    step_id = int(query.data.split(":")[1])
+    step_id = query.data.split(":")[1]
     step = database.get_step(step_id)
     if not step:
         await query.answer("Step not found.", show_alert=True)

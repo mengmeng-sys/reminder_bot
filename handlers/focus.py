@@ -64,12 +64,12 @@ async def focus_pick_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "focus_none":
         task_id = None
     else:
-        task_id = int(query.data.split(":")[1])
+        task_id = query.data.split(":")[1]
 
     title = _task_title(task_id)
     await query.edit_message_text(
         messages.focus_length_text(title),
-        reply_markup=focus_length_keyboard(task_id or 0),
+        reply_markup=focus_length_keyboard(task_id or "0"),
         parse_mode="HTML",
     )
 
@@ -79,7 +79,7 @@ async def focus_on_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = database.get_task(task_id)
     if not task or task.chat_id != update.effective_chat.id:
         await query.answer("Task not found.", show_alert=True)
@@ -98,7 +98,7 @@ async def focus_pick_length(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     _, raw_task_id, raw_minutes = query.data.split(":")
-    task_id = int(raw_task_id) or None
+    task_id = None if raw_task_id == "0" else raw_task_id
     minutes = int(raw_minutes)
 
     # Only one active session per user.
@@ -124,7 +124,7 @@ async def focus_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    session_id = int(query.data.split(":")[1])
+    session_id = query.data.split(":")[1]
     session = jobs.end_session(session_id, "stopped")
     if not session:
         await query.answer("No active session.", show_alert=True)
@@ -142,7 +142,7 @@ async def focus_yes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    session_id = int(query.data.split(":")[1])
+    session_id = query.data.split(":")[1]
     session = database.get_focus_session(session_id)
     if not session:
         return
@@ -160,7 +160,7 @@ async def focus_break(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    session_id = int(query.data.split(":")[1])
+    session_id = query.data.split(":")[1]
     session = jobs.end_session(session_id, "stopped")
     if not session:
         return
@@ -185,7 +185,7 @@ async def focus_finish_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = database.get_task(task_id)
     if not task or task.chat_id != update.effective_chat.id:
         await query.answer("Task not found.", show_alert=True)
@@ -218,7 +218,8 @@ async def focus_break_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1]) or None
+    raw_task_id = query.data.split(":")[1]
+    task_id = None if raw_task_id == "0" else raw_task_id
     session = jobs.start_session(
         context.application, update.effective_chat.id, task_id, "break", 5
     )
@@ -234,7 +235,8 @@ async def focus_another(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1]) or None
+    raw_task_id = query.data.split(":")[1]
+    task_id = None if raw_task_id == "0" else raw_task_id
     # Use the same length as the last focus session, or 25 minutes.
     minutes = database.get_last_focus_minutes(update.effective_chat.id) or 25
 

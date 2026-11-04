@@ -24,7 +24,7 @@ async def alert_start_focus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)
@@ -42,7 +42,7 @@ async def alert_finish_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task or task.status != "active":
         await query.answer("Task not found.", show_alert=True)
@@ -75,7 +75,7 @@ async def alert_snooze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    task_id = int(query.data.split(":")[1])
+    task_id = query.data.split(":")[1]
     task = _get_task(task_id, update.effective_chat.id)
     if not task:
         await query.answer("Task not found.", show_alert=True)

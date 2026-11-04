@@ -238,7 +238,7 @@ def focus_task_keyboard(tasks) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def focus_length_keyboard(task_id: int) -> InlineKeyboardMarkup:
+def focus_length_keyboard(task_id) -> InlineKeyboardMarkup:
     data = f"focus_len:{task_id}"
     return InlineKeyboardMarkup(
         [

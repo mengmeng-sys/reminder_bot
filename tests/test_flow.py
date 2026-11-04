@@ -74,9 +74,7 @@ class FakeContext:
 # --- Tests -------------------------------------------------------------------
 
 
-def test_new_task_quick_flow(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_new_task_quick_flow(mongo_db):
     ctx = FakeContext()
 
     state = asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
@@ -106,18 +104,14 @@ def test_new_task_quick_flow(tmp_path, monkeypatch):
     ]
 
 
-def test_new_task_command(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_new_task_command(mongo_db):
     ctx = FakeContext()
 
     state = asyncio.run(tasks.new_task_command(FakeUpdate(text="/new"), ctx))
     assert state == tasks.NT_TITLE
 
 
-def test_new_task_calendar_flow(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_new_task_calendar_flow(mongo_db):
     ctx = FakeContext()
 
     asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
@@ -148,9 +142,7 @@ def test_new_task_calendar_flow(tmp_path, monkeypatch):
     assert task_list[0].deadline_utc.minute == 30
 
 
-def test_cancel_flow(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_cancel_flow(mongo_db):
     ctx = FakeContext()
 
     asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
@@ -159,26 +151,39 @@ def test_cancel_flow(tmp_path, monkeypatch):
     assert database.get_active_tasks(42) == []
 
 
-def test_finish_next_step_completes_task(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_empty_task_is_rejected(mongo_db):
     ctx = FakeContext()
 
-    task_id = database.add_task(
-        42, "Test", utc_now() + timedelta(days=1), 60
-    )
+    asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
+    state = asyncio.run(tasks.receive_title(FakeUpdate(text="   "), ctx))
+
+    assert state == tasks.NT_TITLE
+
+
+def test_cancel_via_command(mongo_db):
+    ctx = FakeContext()
+
+    asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
+    state = asyncio.run(tasks.cancel(FakeUpdate(text="/cancel"), ctx))
+
+    assert state == tasks.ConversationHandler.END
+    assert database.get_active_tasks(42) == []
+
+
+def test_finish_next_step_completes_task(mongo_db):
+    ctx = FakeContext()
+
+    task_id = database.add_task(42, "Test", utc_now() + timedelta(days=1), 60)
     database.add_step(task_id, "Only step")
 
-    asyncio.run(tasks.finish_next_step(
-        FakeUpdate(data=f"task_finish_step:{task_id}"), ctx
-    ))
+    asyncio.run(
+        tasks.finish_next_step(FakeUpdate(data=f"task_finish_step:{task_id}"), ctx)
+    )
 
     assert database.get_task(task_id).status == "done"
 
 
-def test_focus_without_a_task(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_focus_without_a_task(mongo_db):
     ctx = FakeContext()
 
     asyncio.run(focus.focus_pick_task(FakeUpdate(data="focus_none"), ctx))
@@ -190,21 +195,13 @@ def test_focus_without_a_task(tmp_path, monkeypatch):
     assert session.minutes == 15
 
 
-def test_focus_start_and_stop(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_focus_start_and_stop(mongo_db):
     ctx = FakeContext()
 
-    task_id = database.add_task(
-        42, "Test", utc_now() + timedelta(days=1), 60
-    )
+    task_id = database.add_task(42, "Test", utc_now() + timedelta(days=1), 60)
 
-    asyncio.run(focus.focus_pick_task(
-        FakeUpdate(data=f"focus_task:{task_id}"), ctx
-    ))
-    asyncio.run(focus.focus_pick_length(
-        FakeUpdate(data=f"focus_len:{task_id}:25"), ctx
-    ))
+    asyncio.run(focus.focus_pick_task(FakeUpdate(data=f"focus_task:{task_id}"), ctx))
+    asyncio.run(focus.focus_pick_length(FakeUpdate(data=f"focus_len:{task_id}:25"), ctx))
 
     session = database.get_running_session(42)
     assert session is not None
@@ -215,14 +212,10 @@ def test_focus_start_and_stop(tmp_path, monkeypatch):
     assert database.get_running_session(42) is None
 
 
-def test_alert_checker_sends_only_most_urgent(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_alert_checker_sends_only_most_urgent(mongo_db):
     ctx = FakeContext()
 
-    task_id = database.add_task(
-        42, "Test", utc_now() - timedelta(hours=1), 60
-    )
+    task_id = database.add_task(42, "Test", utc_now() - timedelta(hours=1), 60)
     database.add_alert(task_id, "day_before", utc_now() - timedelta(days=1))
     database.add_alert(task_id, "1h_before", utc_now() - timedelta(hours=1))
     database.add_alert(task_id, "overdue", utc_now() - timedelta(minutes=30))
@@ -236,14 +229,10 @@ def test_alert_checker_sends_only_most_urgent(tmp_path, monkeypatch):
     assert database.get_due_alerts(utc_now()) == []
 
 
-def test_alert_checker_skips_done_tasks(tmp_path, monkeypatch):
-    monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "test.sqlite"))
-    database.init_db()
+def test_alert_checker_skips_done_tasks(mongo_db):
     ctx = FakeContext()
 
-    task_id = database.add_task(
-        42, "Test", utc_now() - timedelta(hours=1), 60
-    )
+    task_id = database.add_task(42, "Test", utc_now() - timedelta(hours=1), 60)
     database.add_alert(task_id, "overdue", utc_now() - timedelta(minutes=30))
     database.mark_task_done(task_id)
 
