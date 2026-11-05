@@ -115,8 +115,8 @@ def test_new_task_quick_flow(mongo_db):
     ]
 
 
-def test_new_task_deletes_user_messages(mongo_db):
-    """Old messages are deleted so the chat stays clean."""
+def test_new_task_keeps_user_messages(mongo_db):
+    """The user's messages stay in the chat; only the bot's message is edited."""
     ctx = FakeContext()
 
     asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
@@ -125,8 +125,8 @@ def test_new_task_deletes_user_messages(mongo_db):
     asyncio.run(tasks.choose_estimate(FakeUpdate(data="est_60"), ctx))
     asyncio.run(tasks.receive_steps(FakeUpdate(text="Step 1"), ctx))
 
-    # The two user messages (title + steps) should have been deleted.
-    assert len(ctx.bot.deleted) == 2
+    # The user's messages should NOT be deleted.
+    assert ctx.bot.deleted == []
 
 
 def test_new_task_command(mongo_db):

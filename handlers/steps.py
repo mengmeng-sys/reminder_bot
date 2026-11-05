@@ -147,7 +147,6 @@ async def add_step_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for line in lines:
         database.add_step(task_id, line)
 
-    await cleanup.delete_user_message(update, context)
     await _render_steps_after_text(
         update, context, task, f"✅ Added {len(lines)} step(s)."
     )
@@ -220,7 +219,6 @@ async def edit_step_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Task not found.")
         return ConversationHandler.END
 
-    await cleanup.delete_user_message(update, context)
     await _render_steps_after_text(update, context, task, "✅ Step updated.")
     return ConversationHandler.END
 

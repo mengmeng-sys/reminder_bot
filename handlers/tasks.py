@@ -137,8 +137,7 @@ async def receive_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return NT_TITLE
 
     context.user_data["title"] = title
-    # Delete the user's message and edit the wizard instead of sending a new one.
-    await cleanup.delete_user_message(update, context)
+    # Edit the wizard instead of sending a new message (keeps the chat clean).
     await cleanup.edit_wizard(
         context,
         update.effective_chat.id,
@@ -305,10 +304,7 @@ async def _create_task(update, context, step_lines):
     if latest_start_time(deadline, estimate) <= utc_now():
         text += "\n\n⚠️ <b>You are already late to start. Start now!</b>"
 
-    # Delete the user's message (if this came from text), then show the card
-    # by editing the wizard message so the chat stays clean.
-    if update.message is not None:
-        await cleanup.delete_user_message(update, context)
+    # Show the card by editing the wizard message so the chat stays clean.
     await cleanup.edit_wizard(
         context, chat_id, text, task_card_keyboard(task.id, bool(step_lines))
     )

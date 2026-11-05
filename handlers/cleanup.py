@@ -29,11 +29,6 @@ async def delete_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, messa
         pass
 
 
-async def delete_user_message(update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Delete the message the user just sent."""
-    await delete_message(context, update.effective_chat.id, update.message.message_id)
-
-
 def set_wizard(context: ContextTypes.DEFAULT_TYPE, message) -> None:
     """Remember which message is the wizard for this conversation."""
     context.user_data[WIZARD_KEY] = message.message_id
