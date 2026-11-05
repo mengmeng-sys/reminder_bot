@@ -12,22 +12,26 @@ from utils import utc_now
 # --- Small fakes -------------------------------------------------------------
 
 
+class FakeMessage:
+    def __init__(self, text, message_id=1):
+        self.text = text
+        self.message_id = message_id
+
+    async def reply_text(self, *args, **kwargs):
+        # Return a fake sent message so callers can use .message_id.
+        return FakeMessage("", message_id=999)
+
+
 class FakeQuery:
     def __init__(self, data):
         self.data = data
+        # A callback query always belongs to a message.
+        self.message = FakeMessage("", message_id=50)
 
     async def answer(self, *args, **kwargs):
         pass
 
     async def edit_message_text(self, *args, **kwargs):
-        pass
-
-
-class FakeMessage:
-    def __init__(self, text):
-        self.text = text
-
-    async def reply_text(self, *args, **kwargs):
         pass
 
 
@@ -42,9 +46,16 @@ class FakeUpdate:
 class FakeBot:
     def __init__(self):
         self.sent = []
+        self.deleted = []
 
     async def send_message(self, **kwargs):
         self.sent.append(kwargs)
+
+    async def edit_message_text(self, **kwargs):
+        self.sent.append({"type": "edit", **kwargs})
+
+    async def delete_message(self, **kwargs):
+        self.deleted.append(kwargs)
 
 
 class FakeJobQueue:
@@ -102,6 +113,20 @@ def test_new_task_quick_flow(mongo_db):
         "Write intro",
         "Make chart",
     ]
+
+
+def test_new_task_deletes_user_messages(mongo_db):
+    """Old messages are deleted so the chat stays clean."""
+    ctx = FakeContext()
+
+    asyncio.run(tasks.start_new_task(FakeUpdate(data="new_task"), ctx))
+    asyncio.run(tasks.receive_title(FakeUpdate(text="Finish report"), ctx))
+    asyncio.run(tasks.choose_deadline(FakeUpdate(data="dl_tomorrow_9"), ctx))
+    asyncio.run(tasks.choose_estimate(FakeUpdate(data="est_60"), ctx))
+    asyncio.run(tasks.receive_steps(FakeUpdate(text="Step 1"), ctx))
+
+    # The two user messages (title + steps) should have been deleted.
+    assert len(ctx.bot.deleted) == 2
 
 
 def test_new_task_command(mongo_db):

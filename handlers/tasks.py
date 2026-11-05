@@ -14,6 +14,7 @@ from telegram.ext import (
 
 import database
 import messages
+from handlers import cleanup
 from keyboards import (
     calendar_keyboard,
     deadline_keyboard,
@@ -101,6 +102,8 @@ async def start_new_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entry point: the user tapped '➕ New task'."""
     query = update.callback_query
     await query.answer()
+    # Clean up the wizard from a previous conversation, if any.
+    await cleanup.clear_wizard(context, update.effective_chat.id)
     context.user_data.clear()
     context.user_data["flow"] = "new_task"
 
@@ -109,17 +112,20 @@ async def start_new_task(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=None,
         parse_mode="HTML",
     )
+    cleanup.set_wizard(context, query.message)
     return NT_TITLE
 
 
 async def new_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/new command: start the new task flow."""
+    await cleanup.clear_wizard(context, update.effective_chat.id)
     context.user_data.clear()
     context.user_data["flow"] = "new_task"
-    await update.message.reply_text(
+    sent = await update.message.reply_text(
         "📝 <b>New task</b>\n\nWhat is the task? Send me a short title.",
         parse_mode="HTML",
     )
+    cleanup.set_wizard(context, sent)
     return NT_TITLE
 
 
@@ -131,11 +137,14 @@ async def receive_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return NT_TITLE
 
     context.user_data["title"] = title
-    await update.message.reply_text(
+    # Delete the user's message and edit the wizard instead of sending a new one.
+    await cleanup.delete_user_message(update, context)
+    await cleanup.edit_wizard(
+        context,
+        update.effective_chat.id,
         f"📝 <b>{escape_html(shorten(title, 60))}</b>\n\n"
         "When is the deadline?",
-        reply_markup=deadline_keyboard(),
-        parse_mode="HTML",
+        deadline_keyboard(),
     )
     return NT_DEADLINE
 
@@ -296,19 +305,13 @@ async def _create_task(update, context, step_lines):
     if latest_start_time(deadline, estimate) <= utc_now():
         text += "\n\n⚠️ <b>You are already late to start. Start now!</b>"
 
-    query = update.callback_query
-    if query:
-        await query.edit_message_text(
-            text,
-            reply_markup=task_card_keyboard(task.id, bool(step_lines)),
-            parse_mode="HTML",
-        )
-    else:
-        await update.message.reply_text(
-            text,
-            reply_markup=task_card_keyboard(task.id, bool(step_lines)),
-            parse_mode="HTML",
-        )
+    # Delete the user's message (if this came from text), then show the card
+    # by editing the wizard message so the chat stays clean.
+    if update.message is not None:
+        await cleanup.delete_user_message(update, context)
+    await cleanup.edit_wizard(
+        context, chat_id, text, task_card_keyboard(task.id, bool(step_lines))
+    )
 
     context.user_data.clear()
 
@@ -643,6 +646,7 @@ async def my_tasks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel any flow."""
+    await cleanup.clear_wizard(context, update.effective_chat.id)
     context.user_data.clear()
     text = "❌ Cancelled.\n\nWhat would you like to do?"
     query = update.callback_query

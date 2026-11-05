@@ -12,6 +12,7 @@ from telegram.ext import (
 
 import database
 import messages
+from handlers import cleanup
 from handlers.tasks import cancel
 from keyboards import step_pick_keyboard, steps_screen_keyboard
 from utils import escape_html
@@ -37,13 +38,14 @@ def _get_task(task_id: int, chat_id: int):
     return task
 
 
-def _render_steps_after_text(update, task, notice: str) -> None:
-    """Send the steps screen after a text input, with a short notice."""
+async def _render_steps_after_text(update, context, task, notice: str) -> None:
+    """Show the steps screen by editing the wizard message."""
     steps = database.get_steps(task.id)
-    update.effective_message.reply_text(
+    await cleanup.edit_wizard(
+        context,
+        update.effective_chat.id,
         f"{notice}\n\n{messages.steps_text(task, steps)}",
-        reply_markup=steps_screen_keyboard(task.id, steps),
-        parse_mode="HTML",
+        steps_screen_keyboard(task.id, steps),
     )
 
 
@@ -120,6 +122,7 @@ async def add_step_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "➕ <b>Add steps</b>\n\nSend me the steps, one per line.",
         parse_mode="HTML",
     )
+    cleanup.set_wizard(context, query.message)
     return AS_TEXT
 
 
@@ -144,7 +147,10 @@ async def add_step_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for line in lines:
         database.add_step(task_id, line)
 
-    _render_steps_after_text(update, task, f"✅ Added {len(lines)} step(s).")
+    await cleanup.delete_user_message(update, context)
+    await _render_steps_after_text(
+        update, context, task, f"✅ Added {len(lines)} step(s)."
+    )
     return ConversationHandler.END
 
 
@@ -191,6 +197,7 @@ async def edit_step_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Send me the new text.",
         parse_mode="HTML",
     )
+    cleanup.set_wizard(context, query.message)
     return ES_TEXT
 
 
@@ -213,7 +220,8 @@ async def edit_step_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Task not found.")
         return ConversationHandler.END
 
-    _render_steps_after_text(update, task, "✅ Step updated.")
+    await cleanup.delete_user_message(update, context)
+    await _render_steps_after_text(update, context, task, "✅ Step updated.")
     return ConversationHandler.END
 
 
